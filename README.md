@@ -67,14 +67,22 @@ Notes:
 
 ```
 GET   /api/health
+POST  /api/uploads                      -> multipart photo upload, returns { url }
 GET   /api/units/:id                    -> unit record (404 if unknown)
 PUT   /api/units/:id                    -> upsert unit record
 GET   /api/units/:id/phases             -> ordered phases array
 PUT   /api/units/:id/phases             -> replace phases array
-PATCH /api/units/:id/phases/:key        -> { percent } update one phase
+PATCH /api/units/:id/phases/:key        -> { percent } update one phase (logs activity)
 GET   /api/units/:id/updates            -> site updates (newest first)
 PUT   /api/units/:id/updates            -> replace updates array
-POST  /api/units/:id/updates            -> prepend one update
+POST  /api/units/:id/updates            -> prepend one update (optional phaseKey, photoUrl)
+GET   /api/units/:id/milestones         -> { phaseKey: paid(boolean) }
+PUT   /api/units/:id/milestones/:key    -> { paid } set one milestone (logs activity)
+GET   /api/units/:id/notes              -> { phaseKey: [{ author, time, text }] }
+POST  /api/units/:id/notes/:key         -> { text } add a note to a phase (logs activity)
+GET   /api/units/:id/messages           -> [{ from, text, time }]
+POST  /api/units/:id/messages           -> { from, text } append a chat message
+GET   /api/units/:id/activity           -> [{ time, text }] auto-generated feed
 ```
 
 ## Going further

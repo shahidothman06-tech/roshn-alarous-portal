@@ -4,6 +4,9 @@ node_modules
 # server runtime data (JSON store is seeded on first run)
 server/data/
 
+# uploaded photos (runtime user content)
+server/uploads/
+
 # build output
 dist
 dist-ssr

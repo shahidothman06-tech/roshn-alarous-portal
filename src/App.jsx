@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import {
   MapPin,
   Ruler,
@@ -20,6 +20,9 @@ import {
   Plus,
   RotateCcw,
   Loader2,
+  ChevronDown,
+  Send,
+  Wallet,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -52,12 +55,16 @@ const FONT_MONO = "'JetBrains Mono', monospace";
 const DEFAULT_UNIT_ID = "ALR-114";
 
 const PHASE_META = [
-  { key: "land", label: "Land Development & Infrastructure", icon: "Compass", weight: 15 },
-  { key: "structure", label: "Foundation & Structure", icon: "Building2", weight: 25 },
-  { key: "mep", label: "Masonry & MEP Rough-in", icon: "HardHat", weight: 30 },
-  { key: "finishing", label: "Finishing & Fit-out", icon: "Paintbrush", weight: 25 },
-  { key: "handover", label: "Handover & Inspection", icon: "ClipboardCheck", weight: 5 },
+  { key: "land", label: "Land Development & Infrastructure", icon: "Compass", weight: 15, milestonePct: 15, dateRange: "Mar 2024 – Sep 2024" },
+  { key: "structure", label: "Foundation & Structure", icon: "Building2", weight: 25, milestonePct: 25, dateRange: "Sep 2024 – Mar 2025" },
+  { key: "mep", label: "Masonry & MEP Rough-in", icon: "HardHat", weight: 30, milestonePct: 30, dateRange: "Mar 2025 – Nov 2025" },
+  { key: "finishing", label: "Finishing & Fit-out", icon: "Paintbrush", weight: 25, milestonePct: 25, dateRange: "Nov 2025 – Jul 2026" },
+  { key: "handover", label: "Handover & Inspection", icon: "ClipboardCheck", weight: 5, milestonePct: 5, dateRange: "Jul 2026 – Q2 2027" },
 ];
+
+const PHASE_KEYS = PHASE_META.map((p) => p.key);
+const emptyMilestones = () => PHASE_KEYS.reduce((a, k) => ({ ...a, [k]: false }), {});
+const emptyNotes = () => PHASE_KEYS.reduce((a, k) => ({ ...a, [k]: [] }), {});
 
 const ICONS = { Compass, Building2, HardHat, Paintbrush, ClipboardCheck };
 
@@ -158,6 +165,50 @@ async function storageSet(key, value) {
   } catch (e) {
     console.error("API save failed", e);
     return false;
+  }
+}
+
+// Upload a photo file to the backend; returns an absolute URL to the stored
+// image (to attach to a site update as photoUrl), or null on failure.
+async function uploadPhoto(file) {
+  try {
+    const form = new FormData();
+    form.append("photo", file);
+    const res = await fetch(`${API_BASE}/uploads`, { method: "POST", body: form });
+    if (!res.ok) throw new Error(`upload failed: ${res.status}`);
+    const { url } = await res.json();
+    return url;
+  } catch (e) {
+    console.error("Photo upload failed", e);
+    return null;
+  }
+}
+
+// Thin REST helpers for the milestones / notes / messages / activity resources
+// (path is relative to API_BASE, e.g. "/units/ALR-114/milestones").
+async function apiGet(path) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GET ${path} failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error("API get failed", e);
+    return null;
+  }
+}
+async function apiSend(method, path, body) {
+  try {
+    const res = await fetch(`${API_BASE}${path}`, {
+      method,
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) throw new Error(`${method} ${path} failed: ${res.status}`);
+    return await res.json();
+  } catch (e) {
+    console.error("API write failed", e);
+    return null;
   }
 }
 
@@ -271,6 +322,137 @@ const inputStyle = {
 };
 
 // ---------------------------------------------------------------------------
+// Expanded phase detail panel (milestone · photos · notes)
+// ---------------------------------------------------------------------------
+function PhaseDetailPanel({
+  phase,
+  paid,
+  photos,
+  phaseNotes,
+  isTeam,
+  onToggleMilestone,
+  noteDraft,
+  onNoteDraftChange,
+  onAddNote,
+}) {
+  const hatch = `repeating-linear-gradient(135deg, ${C.greenSoft}, ${C.greenSoft} 8px, ${C.bg} 8px, ${C.bg} 16px)`;
+  return (
+    <div
+      style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6, marginTop: 8 }}
+      className="p-6"
+    >
+      {/* header: date range + milestone */}
+      <div className="flex flex-wrap justify-between items-start gap-4">
+        <div>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, letterSpacing: "0.04em" }}>{phase.dateRange}</div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 20, marginTop: 4 }}>{phase.label}</div>
+        </div>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, letterSpacing: "0.04em" }} className="flex items-center gap-1 justify-end">
+            <Wallet size={12} /> PAYMENT MILESTONE
+          </div>
+          <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 16, marginTop: 2, color: paid ? C.green : C.coral }}>
+            {phase.milestonePct}% — {paid ? "PAID" : "DUE"}
+          </div>
+          {isTeam && (
+            <button
+              onClick={onToggleMilestone}
+              style={{
+                marginTop: 8,
+                fontFamily: FONT_MONO,
+                fontSize: 10,
+                letterSpacing: "0.04em",
+                background: C.bg,
+                border: `1px solid ${C.hairline}`,
+                borderRadius: 4,
+                padding: "5px 9px",
+                color: C.ink,
+              }}
+            >
+              {paid ? "MARK UNPAID" : "MARK AS PAID"}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* site photos */}
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, letterSpacing: "0.04em", marginTop: 22, marginBottom: 10 }}>
+        SITE PHOTOS
+      </div>
+      <div className="flex gap-3" style={{ overflowX: "auto" }}>
+        {photos.length > 0 ? (
+          photos.map((u, idx) => (
+            <img
+              key={idx}
+              src={u.photoUrl}
+              alt={u.title}
+              title={u.title}
+              style={{ flex: "none", width: 160, height: 110, objectFit: "cover", borderRadius: 6, border: `1px solid ${C.hairline}` }}
+            />
+          ))
+        ) : (
+          <div
+            style={{
+              flex: "none",
+              width: 160,
+              height: 110,
+              borderRadius: 6,
+              border: `1px solid ${C.hairline}`,
+              background: hatch,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 6,
+              color: C.inkSoft,
+            }}
+          >
+            <Camera size={18} />
+            <span style={{ fontFamily: FONT_MONO, fontSize: 10 }}>NO PHOTOS YET</span>
+          </div>
+        )}
+      </div>
+
+      {/* site notes */}
+      <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft, letterSpacing: "0.04em", marginTop: 22, marginBottom: 10 }}>
+        SITE NOTES
+      </div>
+      <div className="flex flex-col gap-2">
+        {phaseNotes.length === 0 && (
+          <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft }}>No notes for this phase yet.</div>
+        )}
+        {phaseNotes.map((n, idx) => (
+          <div key={idx} className="flex gap-3" style={{ fontSize: 13 }}>
+            <span style={{ fontFamily: FONT_MONO, color: C.inkSoft, flex: "none", width: 130 }}>{n.time}</span>
+            <span style={{ color: C.ink }}>
+              <strong>{n.author}</strong> — {n.text}
+            </span>
+          </div>
+        ))}
+      </div>
+      {isTeam && (
+        <div className="flex gap-2 mt-3" style={{ maxWidth: 520 }}>
+          <input
+            style={inputStyle}
+            value={noteDraft}
+            onChange={(e) => onNoteDraftChange(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && onAddNote()}
+            placeholder="Add a site note for the buyer…"
+          />
+          <button
+            onClick={onAddNote}
+            style={{ fontFamily: FONT_MONO, fontSize: 11, background: C.green, color: "#fff", padding: "8px 14px", borderRadius: 4 }}
+            className="flex items-center gap-1"
+          >
+            <Plus size={12} /> POST
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Main app
 // ---------------------------------------------------------------------------
 export default function App() {
@@ -289,9 +471,18 @@ export default function App() {
   const [unitData, setUnitData] = useState(null);
   const [phases, setPhases] = useState(null);
   const [updates, setUpdates] = useState(null);
+  const [milestones, setMilestones] = useState(null);
+  const [notes, setNotes] = useState(null);
+  const [messages, setMessages] = useState(null);
+  const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [newUpdate, setNewUpdate] = useState({ title: "", note: "" });
+  const [newUpdate, setNewUpdate] = useState({ title: "", note: "", phaseKey: "mep" });
+  const [newPhoto, setNewPhoto] = useState(null);
+  const photoInputRef = useRef(null);
+  const [expandedPhaseKey, setExpandedPhaseKey] = useState(null);
+  const [noteDrafts, setNoteDrafts] = useState({});
+  const [messageDraft, setMessageDraft] = useState("");
 
   const load = useCallback(async (id) => {
     setLoading(true);
@@ -312,11 +503,30 @@ export default function App() {
       await storageSet(`updates:${id}`, up);
     }
 
+    // Seeding the core resources above also initializes the unit's bundle on
+    // the server, so these collections now resolve (empty for a new unit).
+    const [ms, nt, msg, act] = await Promise.all([
+      apiGet(`/units/${id}/milestones`),
+      apiGet(`/units/${id}/notes`),
+      apiGet(`/units/${id}/messages`),
+      apiGet(`/units/${id}/activity`),
+    ]);
+
     setUnitData(u);
     setPhases(p);
     setUpdates(up);
+    setMilestones(ms || emptyMilestones());
+    setNotes(nt || emptyNotes());
+    setMessages(msg || []);
+    setActivity(act || []);
+    setExpandedPhaseKey(null);
     setLoading(false);
   }, []);
+
+  const refreshActivity = async () => {
+    const act = await apiGet(`/units/${unitId}/activity`);
+    if (act) setActivity(act);
+  };
 
   useEffect(() => {
     load(unitId);
@@ -330,43 +540,94 @@ export default function App() {
   };
 
   const savePhasePercent = async (key, percent) => {
-    const next = phases.map((p) => (p.key === key ? { ...p, percent } : p));
-    setPhases(next);
+    // Optimistic update, then PATCH the single phase so the server records an
+    // activity-log entry for the change.
+    setPhases(phases.map((p) => (p.key === key ? { ...p, percent } : p)));
     setSaving(true);
-    await storageSet(`phases:${unitId}`, next);
+    const updated = await apiSend("PATCH", `/units/${unitId}/phases/${key}`, { percent });
+    if (updated) setPhases(updated);
+    await refreshActivity();
+    setSaving(false);
+  };
+
+  const toggleMilestone = async (key) => {
+    const nextPaid = !milestones[key];
+    setMilestones({ ...milestones, [key]: nextPaid }); // optimistic
+    setSaving(true);
+    const updated = await apiSend("PUT", `/units/${unitId}/milestones/${key}`, { paid: nextPaid });
+    if (updated) setMilestones(updated);
+    await refreshActivity();
+    setSaving(false);
+  };
+
+  const addNote = async (key) => {
+    const text = (noteDrafts[key] || "").trim();
+    if (!text) return;
+    setSaving(true);
+    const arr = await apiSend("POST", `/units/${unitId}/notes/${key}`, { text, author: "Site Team" });
+    if (arr) setNotes({ ...notes, [key]: arr });
+    setNoteDrafts({ ...noteDrafts, [key]: "" });
+    await refreshActivity();
+    setSaving(false);
+  };
+
+  const sendMessage = async () => {
+    const text = messageDraft.trim();
+    if (!text) return;
+    const from = view === "team" ? "SITE TEAM" : "BUYER";
+    setSaving(true);
+    const arr = await apiSend("POST", `/units/${unitId}/messages`, { from, text });
+    if (arr) setMessages(arr);
+    setMessageDraft("");
     setSaving(false);
   };
 
   const addUpdate = async () => {
     if (!newUpdate.title.trim()) return;
+    setSaving(true);
+
+    // Upload the chosen photo first (if any), then attach its URL to the entry.
+    let photoUrl = null;
+    if (newPhoto) photoUrl = await uploadPhoto(newPhoto);
+
     const entry = {
       date: new Date().toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" }),
       title: newUpdate.title.trim(),
       note: newUpdate.note.trim(),
+      phaseKey: newUpdate.phaseKey,
+      ...(photoUrl ? { photoUrl } : {}),
     };
     const next = [entry, ...updates];
     setUpdates(next);
-    setNewUpdate({ title: "", note: "" });
-    setSaving(true);
+    setNewUpdate({ title: "", note: "", phaseKey: newUpdate.phaseKey });
+    setNewPhoto(null);
+    if (photoInputRef.current) photoInputRef.current.value = "";
     await storageSet(`updates:${unitId}`, next);
     setSaving(false);
   };
 
   const resetDemo = async () => {
-    const u = defaultUnitRecord(unitId);
-    const p = defaultPhases();
-    const up = defaultUpdates();
-    setUnitData(u);
-    setPhases(p);
-    setUpdates(up);
     setSaving(true);
-    await storageSet(`unit:${unitId}`, u);
-    await storageSet(`phases:${unitId}`, p);
-    await storageSet(`updates:${unitId}`, up);
+    // One server call wipes and reseeds the whole unit (phases, updates,
+    // milestones, notes, messages, activity) and returns the fresh bundle, so
+    // every panel updates immediately without a page refresh.
+    const bundle = await apiSend("POST", `/units/${unitId}/reset`, {});
+    if (bundle) {
+      setUnitData(bundle.unit);
+      setPhases(bundle.phases);
+      setUpdates(bundle.updates);
+      setMilestones(bundle.milestones);
+      setNotes(bundle.notes);
+      setMessages(bundle.messages);
+      setActivity(bundle.activity);
+    }
+    setExpandedPhaseKey(null);
+    setNoteDrafts({});
+    setMessageDraft("");
     setSaving(false);
   };
 
-  if (loading || !unitData || !phases || !updates) {
+  if (loading || !unitData || !phases || !updates || !milestones || !notes || !messages || !activity) {
     return (
       <div
         style={{ background: C.bg, color: C.inkSoft, fontFamily: FONT_BODY, minHeight: 300 }}
@@ -384,6 +645,7 @@ export default function App() {
     return { ...p, ...meta, status: statusOf(p.percent) };
   });
   const currentPhase = displayPhases.find((p) => p.status === "active") || displayPhases[0];
+  const expandedPhase = expandedPhaseKey ? displayPhases.find((p) => p.key === expandedPhaseKey) : null;
 
   return (
     <div
@@ -524,12 +786,13 @@ export default function App() {
       <section className="px-5 sm:px-10 py-10 max-w-6xl mx-auto">
         <h2 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 22 }}>Construction timeline</h2>
         <p style={{ color: C.inkSoft, fontSize: 14, marginTop: 4 }}>
-          Five phases, in build order. Payment milestones align with each stage under the Wafi off-plan sale program.
+          Five phases, in build order. Select a phase for milestone, photos and notes. Payment milestones align with each stage under the Wafi off-plan sale program.
         </p>
 
         <div className="mt-8 flex flex-col gap-0">
           {displayPhases.map((phase, i) => {
             const Icon = ICONS[phase.icon];
+            const isSelected = phase.key === expandedPhaseKey;
             return (
               <div key={phase.key} className="flex gap-4">
                 <div className="flex flex-col items-center">
@@ -552,14 +815,40 @@ export default function App() {
                   {i < displayPhases.length - 1 && <div style={{ width: 1, flex: 1, background: C.hairline, minHeight: 28 }} />}
                 </div>
                 <div className="pb-8 flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 15 }}>{phase.label}</span>
-                    <StatusBadge status={phase.status} />
-                  </div>
-                  <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkSoft, marginTop: 4 }}>{phase.date}</div>
-                  <div style={{ marginTop: 8, height: 6, background: "#EFEBE0", borderRadius: 3, overflow: "hidden", maxWidth: 320 }}>
-                    <div style={{ width: `${phase.percent}%`, height: "100%", background: phase.status === "done" ? C.green : C.coral }} />
-                  </div>
+                  {/* Clickable phase header — expands the detail panel below */}
+                  <button
+                    onClick={() => setExpandedPhaseKey(isSelected ? null : phase.key)}
+                    style={{
+                      display: "block",
+                      width: "100%",
+                      textAlign: "left",
+                      cursor: "pointer",
+                      background: isSelected ? C.greenSoft : "transparent",
+                      border: `1px solid ${isSelected ? C.hairline : "transparent"}`,
+                      borderRadius: 6,
+                      padding: isSelected ? "8px 10px" : "8px 0",
+                      margin: isSelected ? "0 -10px" : 0,
+                      transition: "background 0.15s",
+                    }}
+                  >
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 15 }}>{phase.label}</span>
+                      <StatusBadge status={phase.status} />
+                      <ChevronDown
+                        size={16}
+                        style={{
+                          color: C.inkSoft,
+                          marginLeft: "auto",
+                          transform: isSelected ? "rotate(180deg)" : "none",
+                          transition: "transform 0.15s",
+                        }}
+                      />
+                    </div>
+                    <div style={{ fontFamily: FONT_MONO, fontSize: 12, color: C.inkSoft, marginTop: 4 }}>{phase.date}</div>
+                    <div style={{ marginTop: 8, height: 6, background: "#EFEBE0", borderRadius: 3, overflow: "hidden", maxWidth: 320 }}>
+                      <div style={{ width: `${phase.percent}%`, height: "100%", background: phase.status === "done" ? C.green : C.coral }} />
+                    </div>
+                  </button>
 
                   {view === "team" && (
                     <div className="flex items-center gap-3 mt-3 max-w-sm">
@@ -580,6 +869,92 @@ export default function App() {
               </div>
             );
           })}
+        </div>
+
+        {/* Expanded phase detail panel */}
+        {expandedPhase && (
+          <PhaseDetailPanel
+            phase={expandedPhase}
+            paid={!!milestones[expandedPhase.key]}
+            photos={updates.filter((u) => u.phaseKey === expandedPhase.key && u.photoUrl)}
+            phaseNotes={notes[expandedPhase.key] || []}
+            isTeam={view === "team"}
+            onToggleMilestone={() => toggleMilestone(expandedPhase.key)}
+            noteDraft={noteDrafts[expandedPhase.key] || ""}
+            onNoteDraftChange={(v) => setNoteDrafts({ ...noteDrafts, [expandedPhase.key]: v })}
+            onAddNote={() => addNote(expandedPhase.key)}
+          />
+        )}
+      </section>
+
+      {/* Messages + Activity log */}
+      <section className="px-5 sm:px-10 py-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Messages */}
+        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-5 flex flex-col" >
+          <h3 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 17 }}>Messages</h3>
+          <p style={{ color: C.inkSoft, fontSize: 13, marginTop: 2 }}>Direct line between buyer and site team.</p>
+          <div className="flex flex-col gap-3 mt-4 mb-3" style={{ flex: 1, overflowY: "auto", maxHeight: 300 }}>
+            {messages.length === 0 && (
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft }}>No messages yet.</div>
+            )}
+            {messages.map((m, idx) => {
+              const mine = m.from === "BUYER";
+              return (
+                <div
+                  key={idx}
+                  style={{
+                    alignSelf: mine ? "flex-end" : "flex-start",
+                    maxWidth: "80%",
+                    background: mine ? C.green : C.greenSoft,
+                    color: mine ? "#fff" : C.ink,
+                    padding: "8px 12px",
+                    borderRadius: 8,
+                  }}
+                >
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 9, opacity: 0.7, letterSpacing: "0.04em", marginBottom: 3 }}>
+                    {m.from} · {m.time}
+                  </div>
+                  <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>{m.text}</div>
+                </div>
+              );
+            })}
+          </div>
+          <div className="flex gap-2">
+            <input
+              style={inputStyle}
+              value={messageDraft}
+              onChange={(e) => setMessageDraft(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={view === "team" ? "Message the buyer…" : "Message the site team…"}
+            />
+            <button
+              onClick={sendMessage}
+              style={{ fontFamily: FONT_MONO, fontSize: 11, background: C.coral, color: "#fff", padding: "8px 14px", borderRadius: 4 }}
+              className="flex items-center gap-1"
+            >
+              <Send size={12} /> SEND
+            </button>
+          </div>
+        </div>
+
+        {/* Activity log */}
+        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-5">
+          <h3 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 17 }}>Activity log</h3>
+          <p style={{ color: C.inkSoft, fontSize: 13, marginTop: 2 }}>Automatic record of progress and milestone changes.</p>
+          <div className="flex flex-col gap-3 mt-4" style={{ maxHeight: 340, overflowY: "auto" }}>
+            {activity.length === 0 && (
+              <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.inkSoft }}>No activity yet.</div>
+            )}
+            {activity.map((entry, idx) => (
+              <div key={idx} className="flex gap-3">
+                <div style={{ flexShrink: 0, width: 8, height: 8, borderRadius: "50%", background: C.green, marginTop: 5 }} />
+                <div>
+                  <div style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.inkSoft, letterSpacing: "0.04em" }}>{entry.time}</div>
+                  <div style={{ fontSize: 13, color: C.ink }}>{entry.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -608,6 +983,33 @@ export default function App() {
                   placeholder="Details for the buyer"
                 />
               </Field>
+              <Field label="PHASE">
+                <select
+                  style={inputStyle}
+                  value={newUpdate.phaseKey}
+                  onChange={(e) => setNewUpdate({ ...newUpdate, phaseKey: e.target.value })}
+                >
+                  {PHASE_META.map((m) => (
+                    <option key={m.key} value={m.key}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="PHOTO (OPTIONAL)">
+                <input
+                  ref={photoInputRef}
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setNewPhoto(e.target.files?.[0] || null)}
+                  style={{ fontFamily: FONT_BODY, fontSize: 12, color: C.inkSoft }}
+                />
+                {newPhoto && (
+                  <span style={{ fontFamily: FONT_MONO, fontSize: 10, color: C.green, marginTop: 2 }}>
+                    {newPhoto.name}
+                  </span>
+                )}
+              </Field>
               <button
                 onClick={addUpdate}
                 style={{ fontFamily: FONT_MONO, fontSize: 12, background: C.coral, color: "#fff", padding: "8px 12px", borderRadius: 4, alignSelf: "flex-start" }}
@@ -622,19 +1024,33 @@ export default function App() {
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6">
           {updates.map((u, idx) => (
             <div key={idx} style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="overflow-hidden">
-              <div
-                style={{
-                  height: 110,
-                  background: C.greenSoft,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  color: C.green,
-                  borderBottom: `1px solid ${C.hairline}`,
-                }}
-              >
-                <Camera size={22} />
-              </div>
+              {u.photoUrl ? (
+                <img
+                  src={u.photoUrl}
+                  alt={u.title}
+                  style={{
+                    height: 110,
+                    width: "100%",
+                    objectFit: "cover",
+                    display: "block",
+                    borderBottom: `1px solid ${C.hairline}`,
+                  }}
+                />
+              ) : (
+                <div
+                  style={{
+                    height: 110,
+                    background: C.greenSoft,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    color: C.green,
+                    borderBottom: `1px solid ${C.hairline}`,
+                  }}
+                >
+                  <Camera size={22} />
+                </div>
+              )}
               <div className="p-4">
                 <div style={{ fontFamily: FONT_MONO, fontSize: 11, color: C.coral }}>{u.date}</div>
                 <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 15, marginTop: 4 }}>{u.title}</div>
@@ -708,8 +1124,7 @@ export default function App() {
       </section>
 
       <footer className="px-5 sm:px-10 py-6 text-center" style={{ borderTop: `1px solid ${C.hairline}`, color: C.inkSoft, fontSize: 12, fontFamily: FONT_MONO }}>
-        Demo data is stored in this browser's local storage only (not shared across devices). Swap the
-        storage helpers for real API calls — see backend_data_model.md — to go live.
+        Data is served by the portal backend (server/) and shared across devices. See backend_data_model.md for the full data model.
       </footer>
     </div>
   );

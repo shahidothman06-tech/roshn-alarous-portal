@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<style>
+  body{margin:0;background:#EFE9DA;font-family:Helvetica,Arial,sans-serif;color:#181712}
+  ::selection{background:#0B3B2E;color:#fff}
+  a{color:#0B3B2E}
+  a:hover{color:#C75B3E}
+  input::placeholder{color:#8a8474}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}
+  @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</helmet>
+
+<div style="min-height:100vh;background:#EFE9DA;background-image:linear-gradient(rgba(0,0,0,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(0,0,0,0.02) 1px,transparent 1px);background-size:28px 28px">
+
+  <!-- top bar -->
+  <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 28px;border-bottom:1px solid rgba(0,0,0,0.12)">
+    <div style="display:flex;align-items:center;gap:16px">
+      <div style="background:#0B3B2E;color:#fff;font-weight:700;letter-spacing:0.04em;padding:8px 14px;border-radius:4px;font-size:14px">ROSHN</div>
+      <div style="font-weight:700;font-size:15px">Alarous <span style="font-weight:400;color:#8a8474">· Buyer Portal</span></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:18px">
+      <div style="text-align:right;font-size:13px">
+        <div style="font-weight:600">{{ currentUnit.buyerName }}</div>
+        <div class="mono" style="color:#8a8474;font-size:11px">{{ currentUnit.unitId }}</div>
+      </div>
+      <div style="display:flex;border:1px solid rgba(0,0,0,0.15);border-radius:6px;overflow:hidden">
+        <button onClick="{{ setRoleBuyer }}" class="mono" style="border:none;padding:8px 14px;font-size:11px;letter-spacing:0.04em;cursor:pointer;white-space:nowrap;background:{{ buyerBtnBg }};color:{{ buyerBtnColor }}">&#9673; BUYER</button>
+        <button onClick="{{ setRoleSite }}" class="mono" style="border:none;padding:8px 14px;font-size:11px;letter-spacing:0.04em;cursor:pointer;white-space:nowrap;background:{{ siteBtnBg }};color:{{ siteBtnColor }}">&#9787; SITE TEAM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- unit loader -->
+  <div style="display:flex;align-items:center;gap:12px;padding:16px 28px;background:#F5F1E6;border-bottom:1px solid rgba(0,0,0,0.1)">
+    <span class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">UNIT ID</span>
+    <input value="{{ unitIdInput }}" onChange="{{ onUnitIdChange }}" style="width:140px;padding:9px 10px;border:1px solid rgba(0,0,0,0.2);border-radius:4px;font-size:14px;font-weight:600;background:#fff"/>
+    <button onClick="{{ loadUnit }}" class="mono" style="background:#0B3B2E;color:#fff;border:none;padding:10px 16px;border-radius:4px;font-size:11px;letter-spacing:0.04em;cursor:pointer">LOAD / CREATE</button>
+    <button onClick="{{ resetDemo }}" class="mono" style="background:#fff;border:1px solid rgba(0,0,0,0.2);padding:10px 16px;border-radius:4px;font-size:11px;letter-spacing:0.04em;cursor:pointer">&#8635; RESET DEMO DATA</button>
+    <sc-if value="{{ notFoundNotice }}"><span class="mono" style="font-size:11px;color:#C75B3E">new unit created</span></sc-if>
+  </div>
+
+  <!-- hero -->
+  <div style="display:grid;grid-template-columns:1fr 560px;gap:40px;padding:56px 28px 40px;align-items:center;max-width:1440px;margin:0 auto">
+    <div>
+      <div class="mono" style="color:#C75B3E;font-size:12px;letter-spacing:0.06em;margin-bottom:14px">ALAROUS · BLOCK {{ currentUnit.block }}, CLUSTER {{ currentUnit.cluster }}</div>
+      <h1 style="font-size:52px;line-height:1.05;font-weight:800;margin:0 0 20px;letter-spacing:-0.01em">Your villa is <span style="color:#0B3B2E">{{ currentUnit.percent }}%</span> built.</h1>
+      <p style="font-size:17px;line-height:1.6;color:#3a382f;max-width:480px;margin:0 0 28px">Currently in <strong>{{ currentUnit.currentPhaseName }}</strong>. Estimated handover remains on track for <strong>{{ currentUnit.handover }}</strong>.</p>
+      <div style="display:flex;gap:44px;margin-bottom:8px">
+        <div><div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">UNIT</div><div style="font-size:18px;font-weight:700">{{ currentUnit.unitId }}</div></div>
+        <div><div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">PLOT</div><div style="font-size:18px;font-weight:700">{{ currentUnit.plot }} m&#178;</div></div>
+        <div><div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">HANDOVER</div><div style="font-size:18px;font-weight:700">{{ currentUnit.handover }}</div></div>
+      </div>
+      <sc-if value="{{ isSiteTeam }}" hint-placeholder-val="{{ false }}">
+        <div style="margin-top:22px;padding:16px;background:#fff;border:1px solid rgba(0,0,0,0.12);border-radius:8px;max-width:480px">
+          <div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em;margin-bottom:8px">SITE TEAM &#8212; UPDATE PROGRESS</div>
+          <input type="range" min="0" max="100" value="{{ currentUnit.percent }}" onChange="{{ onPercentChange }}" style="width:100%"/>
+        </div>
+      </sc-if>
+    </div>
+
+    <div style="background:#fff;border-radius:10px;padding:0;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);border:1px solid rgba(0,0,0,0.06)">
+      <div style="position:relative;width:100%;height:460px">
+        <div style="position:absolute;right:60px;top:70px;width:56px;height:56px;border-radius:50%;border:2px solid #C99A4A"></div>
+        <div style="position:absolute;left:70px;top:120px;bottom:70px;width:2px;background:linear-gradient(#a9b8ab,#a9b8ab)"></div>
+        <div style="position:absolute;left:44px;top:100px;width:56px;height:40px;border-left:2px solid #a9b8ab;border-right:2px solid #a9b8ab;border-radius:50% 50% 0 0;opacity:0.7"></div>
+        <div style="position:absolute;left:190px;top:130px;right:150px;bottom:70px;border:2px dashed #8fa393"></div>
+        <div style="position:absolute;left:190px;bottom:70px;right:150px;height:{{ currentUnit.fillHeight }}px;background:#DCE7DD;border:2px solid #1a1a1a;border-top:none"></div>
+        <div style="position:absolute;left:210px;bottom:70px;width:90px;height:110px;background:#E4D8BE;border:2px solid #1a1a1a"></div>
+        <div style="position:absolute;left:320px;bottom:150px;width:30px;height:30px;background:#fff;border:2px solid #1a1a1a"></div>
+        <div style="position:absolute;left:376px;bottom:70px;width:22px;height:60px;background:#C75B3E;border:2px solid #1a1a1a"></div>
+        <div style="position:absolute;left:0;right:0;bottom:70px;height:2px;background:#B9AF95"></div>
+        <div class="mono" style="position:absolute;right:56px;top:132px;font-size:15px;color:#C75B3E;font-weight:700">{{ currentUnit.percent }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- construction timeline -->
+  <div style="padding:20px 28px 8px;max-width:1440px;margin:0 auto">
+    <h2 style="font-size:24px;font-weight:800;margin:0 0 4px">Construction timeline</h2>
+    <p style="color:#6b6858;margin:0 0 26px;font-size:14px">Five phases, in build order. Payment milestones align with each stage under the Wafi off-plan sale program.</p>
+
+    <div style="display:flex;gap:0;margin-bottom:24px">
+      <sc-for list="{{ currentUnit.phases }}" as="phase" hint-placeholder-count="5">
+        <div onClick="{{ phase.onSelect }}" style="flex:1;padding:14px 10px;border-top:3px solid {{ phase.barColor }};cursor:pointer;background:{{ phase.selected }};transition:background 0.15s">
+          <div class="mono" style="font-size:10px;color:#8a8474;letter-spacing:0.04em">PHASE {{ phase.num }} &#8226; {{ phase.statusLabel }}</div>
+          <div style="font-weight:700;font-size:14px;margin-top:4px">{{ phase.name }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ hasExpandedPhase }}" hint-placeholder-val="{{ false }}">
+      <div style="background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:26px;margin-bottom:36px;animation:fadein 0.2s ease-out">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px;margin-bottom:20px">
+          <div>
+            <div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">{{ expandedPhase.dateRange }}</div>
+            <div style="font-size:20px;font-weight:800;margin-top:4px">{{ expandedPhase.name }}</div>
+          </div>
+          <div style="text-align:right">
+            <div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em">PAYMENT MILESTONE</div>
+            <div style="font-size:16px;font-weight:700;margin-top:2px">{{ expandedPhase.milestonePct }}% &#8212; {{ expandedPhase.milestoneStatus }}</div>
+            <sc-if value="{{ isSiteTeam }}" hint-placeholder-val="{{ false }}">
+              <button onClick="{{ expandedPhase.toggleMilestone }}" class="mono" style="margin-top:8px;font-size:10px;letter-spacing:0.04em;background:#F5F1E6;border:1px solid rgba(0,0,0,0.15);border-radius:4px;padding:5px 9px;cursor:pointer">{{ expandedPhase.milestoneToggleLabel }}</button>
+            </sc-if>
+          </div>
+        </div>
+
+        <div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em;margin-bottom:10px">SITE PHOTOS &amp; VIDEO</div>
+        <div style="display:flex;gap:12px;margin-bottom:24px;overflow-x:auto">
+          <sc-for list="{{ expandedPhase.photos }}" as="photo" hint-placeholder-count="3">
+            <div style="flex:none;width:160px;height:110px;border-radius:6px;border:1px solid rgba(0,0,0,0.12);background:repeating-linear-gradient(135deg,#EFE9DA,#EFE9DA 8px,#E4DDC9 8px,#E4DDC9 16px);display:flex;align-items:center;justify-content:center;text-align:center;padding:8px">
+              <span class="mono" style="font-size:10px;color:#8a8474">{{ photo.caption }}</span>
+            </div>
+          </sc-for>
+        </div>
+
+        <div class="mono" style="font-size:11px;color:#8a8474;letter-spacing:0.04em;margin-bottom:10px">SITE NOTES</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:14px">
+          <sc-for list="{{ expandedPhase.notes }}" as="note" hint-placeholder-count="2">
+            <div style="display:flex;gap:10px;font-size:13px">
+              <span class="mono" style="color:#8a8474;flex:none;width:90px">{{ note.time }}</span>
+              <span><strong>{{ note.author }}</strong>&#8202;&#8212;&#8202;{{ note.text }}</span>
+            </div>
+          </sc-for>
+        </div>
+        <sc-if value="{{ isSiteTeam }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;gap:8px;margin-top:14px">
+            <input value="{{ expandedPhase.noteDraft }}" onChange="{{ expandedPhase.onNoteDraftChange }}" placeholder="Add a site note for the buyer..." style="flex:1;padding:10px 12px;border:1px solid rgba(0,0,0,0.2);border-radius:4px;font-size:13px"/>
+            <button onClick="{{ expandedPhase.addNote }}" class="mono" style="background:#0B3B2E;color:#fff;border:none;padding:10px 16px;border-radius:4px;font-size:11px;cursor:pointer">POST</button>
+          </div>
+        </sc-if>
+      </div>
+    </sc-if>
+  </div>
+
+  <!-- messaging + activity -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;padding:0 28px 56px;max-width:1440px;margin:0 auto">
+    <div style="background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:24px;display:flex;flex-direction:column;min-height:360px">
+      <h3 style="font-size:16px;font-weight:800;margin:0 0 4px">Messages</h3>
+      <p style="font-size:13px;color:#8a8474;margin:0 0 18px">Direct line between buyer and site team.</p>
+      <div style="flex:1;display:flex;flex-direction:column;gap:12px;overflow-y:auto;max-height:280px;margin-bottom:14px">
+        <sc-for list="{{ currentUnit.messages }}" as="msg" hint-placeholder-count="3">
+          <div style="align-self:{{ msg.align }};max-width:78%;background:{{ msg.bg }};color:{{ msg.color }};padding:10px 13px;border-radius:8px">
+            <div class="mono" style="font-size:9px;opacity:0.7;letter-spacing:0.04em;margin-bottom:3px">{{ msg.from }} &#8226; {{ msg.time }}</div>
+            <div style="font-size:13.5px;line-height:1.4">{{ msg.text }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display:flex;gap:8px">
+        <input value="{{ messageDraft }}" onChange="{{ onMessageDraftChange }}" placeholder="{{ messagePlaceholder }}" style="flex:1;padding:10px 12px;border:1px solid rgba(0,0,0,0.2);border-radius:4px;font-size:13px"/>
+        <button onClick="{{ sendMessage }}" class="mono" style="background:#C75B3E;color:#fff;border:none;padding:10px 16px;border-radius:4px;font-size:11px;cursor:pointer">SEND</button>
+      </div>
+    </div>
+
+    <div style="background:#fff;border:1px solid rgba(0,0,0,0.1);border-radius:10px;padding:24px;min-height:360px">
+      <h3 style="font-size:16px;font-weight:800;margin:0 0 4px">Activity log</h3>
+      <p style="font-size:13px;color:#8a8474;margin:0 0 18px">Automatic record of status and milestone changes.</p>
+      <div style="display:flex;flex-direction:column;gap:14px;max-height:280px;overflow-y:auto">
+        <sc-for list="{{ currentUnit.activityLog }}" as="entry" hint-placeholder-count="4">
+          <div style="display:flex;gap:10px;font-size:13px">
+            <div style="flex:none;width:8px;height:8px;border-radius:50%;background:#0B3B2E;margin-top:5px"></div>
+            <div>
+              <div class="mono" style="font-size:10px;color:#8a8474;letter-spacing:0.04em">{{ entry.time }}</div>
+              <div>{{ entry.text }}</div>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:1000},&quot;defaultRole&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;default&quot;:&quot;site&quot;,&quot;options&quot;:[&quot;buyer&quot;,&quot;site&quot;],&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;},&quot;currentUnitId&quot;:{&quot;editor&quot;:&quot;text&quot;,&quot;default&quot;:&quot;ALR-115&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Behavior&quot;}}">
+const PHASE_DEFS = [
+  { key:'foundation', name:'Foundation & Enabling Works', min:0, max:15, milestonePct:20, dateRange:'Jan 2026 – Mar 2026' },
+  { key:'structure', name:'Structure & Shell', min:15, max:40, milestonePct:20, dateRange:'Mar 2026 – Jun 2026' },
+  { key:'masonry', name:'Masonry & MEP Rough-in', min:40, max:70, milestonePct:25, dateRange:'Jun 2026 – Nov 2026' },
+  { key:'finishing', name:'Finishing & Fit-out', min:70, max:95, milestonePct:25, dateRange:'Nov 2026 – Mar 2027' },
+  { key:'handover', name:'Handover & Inspection', min:95, max:100, milestonePct:10, dateRange:'Mar 2027 – Jun 2027' },
+];
+
+function phaseNameForPercent(pct){
+  const p = PHASE_DEFS.find(p => pct < p.max) || PHASE_DEFS[PHASE_DEFS.length-1];
+  return p.name;
+}
+
+function makeUnit(unitId, overrides){
+  const base = {
+    unitId, buyerName:'Ahmed Al-Otaibi', block:'14', cluster:'C', plot:450, handover:'Q2 2027',
+    percent:67,
+    milestonesPaid:{ foundation:true, structure:true, masonry:false, finishing:false, handover:false },
+    notesByPhase:{
+      foundation:[{author:'Site Engineer — Faisal', time:'Mar 2, 2026', text:'Excavation and footings complete, passed municipal inspection.'}],
+      structure:[{author:'Site Engineer — Faisal', time:'May 18, 2026', text:'Roof slab poured on schedule.'}],
+      masonry:[{author:'Site Engineer — Faisal', time:'Jul 9, 2026', text:'Block work on ground floor complete, MEP conduit routing underway.'}],
+      finishing:[], handover:[]
+    },
+    messages:[
+      { from:'SITE TEAM', text:'Masonry is progressing well, on track for the Nov milestone.', time:'Jul 9, 2026' },
+      { from:'BUYER', text:'Great, thank you for the update! Any recent photos?', time:'Jul 10, 2026' },
+    ],
+    activityLog:[
+      { time:'Jul 9, 2026', text:'Masonry & MEP Rough-in progress updated to 67%.' },
+      { time:'Jun 3, 2026', text:'Structure & Shell milestone (20%) marked as paid.' },
+      { time:'Mar 3, 2026', text:'Foundation & Enabling Works milestone (20%) marked as paid.' },
+    ],
+  };
+  return Object.assign(base, overrides || {});
+}
+
+function defaultUnits(){
+  return {
+    'ALR-114': makeUnit('ALR-114'),
+    'ALR-108': makeUnit('ALR-108', { buyerName:'Noura Al-Harbi', block:'9', cluster:'A', plot:380, percent:32,
+      milestonesPaid:{ foundation:true, structure:false, masonry:false, finishing:false, handover:false },
+      notesByPhase:{ foundation:[{author:'Site Engineer — Khalid', time:'Feb 14, 2026', text:'Foundation works complete.'}], structure:[], masonry:[], finishing:[], handover:[] },
+      messages:[{ from:'SITE TEAM', text:'Foundation stage signed off, moving into structure next.', time:'Feb 14, 2026' }],
+      activityLog:[{ time:'Feb 14, 2026', text:'Foundation & Enabling Works progress updated to 32%.' }] }),
+    'ALR-201': makeUnit('ALR-201', { buyerName:'Yousef Al-Qahtani', block:'22', cluster:'E', plot:520, percent:94,
+      milestonesPaid:{ foundation:true, structure:true, masonry:true, finishing:true, handover:false },
+      notesByPhase:{ foundation:[], structure:[], masonry:[], finishing:[{author:'Site Engineer — Reem', time:'Feb 20, 2027', text:'Fit-out and final paint complete, snag list in progress.'}], handover:[] },
+      messages:[{ from:'SITE TEAM', text:'Final inspection scheduled for next month ahead of handover.', time:'Feb 20, 2027' }],
+      activityLog:[{ time:'Feb 20, 2027', text:'Finishing & Fit-out progress updated to 94%.' }] }),
+  };
+}
+
+class Component extends DCLogic {
+  state = {
+    role: this.props.defaultRole || 'buyer',
+    unitIdInput: this.props.currentUnitId || 'ALR-114',
+    currentUnitId: this.props.currentUnitId || 'ALR-114',
+    units: defaultUnits(),
+    expandedPhaseKey: null,
+    messageDraft: '',
+    noteDrafts: {},
+    justCreated: false,
+  };
+
+  setRole(role){ this.setState({ role }); }
+
+  onUnitIdChange(e){ this.setState({ unitIdInput: e.target.value.toUpperCase() }); }
+
+  loadUnit(){
+    const id = this.state.unitIdInput.trim().toUpperCase();
+    if (!id) return;
+    if (this.state.units[id]) {
+      this.setState({ currentUnitId: id, expandedPhaseKey: null, justCreated:false });
+    } else {
+      const units = { ...this.state.units, [id]: makeUnit(id, { percent:5,
+        milestonesPaid:{foundation:false,structure:false,masonry:false,finishing:false,handover:false},
+        notesByPhase:{foundation:[],structure:[],masonry:[],finishing:[],handover:[]},
+        messages:[], activityLog:[{ time:'Today', text:'Unit created.' }] }) };
+      this.setState({ units, currentUnitId: id, expandedPhaseKey:null, justCreated:true });
+    }
+  }
+
+  resetDemo(){
+    this.setState({ units: defaultUnits(), currentUnitId:'ALR-114', unitIdInput:'ALR-114', expandedPhaseKey:null, justCreated:false });
+  }
+
+  selectPhase(key){
+    this.setState({ expandedPhaseKey: this.state.expandedPhaseKey === key ? null : key });
+  }
+
+  onPercentChange(e){
+    const pct = parseInt(e.target.value, 10);
+    const id = this.state.currentUnitId;
+    const units = { ...this.state.units };
+    const unit = { ...units[id] };
+    unit.percent = pct;
+    const log = [{ time:'Just now', text: phaseNameForPercent(pct) + ' progress updated to ' + pct + '%.' }, ...unit.activityLog];
+    unit.activityLog = log;
+    units[id] = unit;
+    this.setState({ units });
+  }
+
+  toggleMilestone(phaseKey){
+    const id = this.state.currentUnitId;
+    const units = { ...this.state.units };
+    const unit = { ...units[id] };
+    const milestonesPaid = { ...unit.milestonesPaid, [phaseKey]: !unit.milestonesPaid[phaseKey] };
+    unit.milestonesPaid = milestonesPaid;
+    const def = PHASE_DEFS.find(p => p.key === phaseKey);
+    unit.activityLog = [{ time:'Just now', text: def.name + ' milestone (' + def.milestonePct + '%) marked as ' + (milestonesPaid[phaseKey] ? 'paid' : 'unpaid') + '.' }, ...unit.activityLog];
+    units[id] = unit;
+    this.setState({ units });
+  }
+
+  onNoteDraftChange(phaseKey, e){
+    this.setState({ noteDrafts: { ...this.state.noteDrafts, [phaseKey]: e.target.value } });
+  }
+
+  addNote(phaseKey){
+    const text = (this.state.noteDrafts[phaseKey] || '').trim();
+    if (!text) return;
+    const id = this.state.currentUnitId;
+    const units = { ...this.state.units };
+    const unit = { ...units[id] };
+    const notesByPhase = { ...unit.notesByPhase };
+    notesByPhase[phaseKey] = [...(notesByPhase[phaseKey] || []), { author:'Site Team', time:'Just now', text }];
+    unit.notesByPhase = notesByPhase;
+    unit.activityLog = [{ time:'Just now', text:'Note added on ' + PHASE_DEFS.find(p=>p.key===phaseKey).name + '.' }, ...unit.activityLog];
+    units[id] = unit;
+    this.setState({ units, noteDrafts: { ...this.state.noteDrafts, [phaseKey]: '' } });
+  }
+
+  onMessageDraftChange(e){ this.setState({ messageDraft: e.target.value }); }
+
+  sendMessage(){
+    const text = this.state.messageDraft.trim();
+    if (!text) return;
+    const id = this.state.currentUnitId;
+    const units = { ...this.state.units };
+    const unit = { ...units[id] };
+    unit.messages = [...unit.messages, { from: this.state.role === 'site' ? 'SITE TEAM' : 'BUYER', text, time:'Just now' }];
+    units[id] = unit;
+    this.setState({ units, messageDraft:'' });
+  }
+
+  renderVals(){
+    const isSiteTeam = this.state.role === 'site';
+    const raw = this.state.units[this.state.currentUnitId] || makeUnit(this.state.currentUnitId);
+    const expandedKey = this.state.expandedPhaseKey;
+
+    const phases = PHASE_DEFS.map((def, i) => {
+      const status = raw.percent >= def.max ? 'done' : (raw.percent >= def.min ? 'active' : 'upcoming');
+      const statusLabel = status === 'done' ? 'COMPLETE' : status === 'active' ? 'IN PROGRESS' : 'UPCOMING';
+      const barColor = status === 'done' ? '#0B3B2E' : status === 'active' ? '#C75B3E' : 'rgba(0,0,0,0.12)';
+      const selected = expandedKey === def.key ? '#F5F1E6' : 'transparent';
+      const photos = status === 'upcoming'
+        ? [{ caption:'NOT YET STARTED' }]
+        : [1,2,3].map(n => ({ caption: 'SITE PHOTO — ' + def.name.split(' ')[0].toUpperCase() + ' W' + n }));
+      return {
+        key: def.key, num: i+1, name: def.name, statusLabel, barColor, selected,
+        dateRange: def.dateRange, milestonePct: def.milestonePct,
+        milestoneStatus: raw.milestonesPaid[def.key] ? 'PAID' : 'DUE',
+        milestoneToggleLabel: raw.milestonesPaid[def.key] ? 'MARK UNPAID' : 'MARK AS PAID',
+        photos,
+        notes: raw.notesByPhase[def.key] || [],
+        noteDraft: this.state.noteDrafts[def.key] || '',
+        onSelect: () => this.selectPhase(def.key),
+        toggleMilestone: () => this.toggleMilestone(def.key),
+        onNoteDraftChange: (e) => this.onNoteDraftChange(def.key, e),
+        addNote: () => this.addNote(def.key),
+      };
+    });
+
+    const expandedPhase = phases.find(p => p.key === expandedKey) || null;
+    const fillHeight = Math.round((raw.percent / 100) * 300);
+
+    const currentUnit = {
+      unitId: raw.unitId, buyerName: raw.buyerName, block: raw.block, cluster: raw.cluster,
+      plot: raw.plot, handover: raw.handover, percent: raw.percent,
+      currentPhaseName: phaseNameForPercent(raw.percent),
+      fillHeight,
+      phases,
+      messages: raw.messages.map(m => ({
+        from: m.from, text: m.text, time: m.time,
+        align: m.from === 'BUYER' ? 'flex-end' : 'flex-start',
+        bg: m.from === 'BUYER' ? '#0B3B2E' : '#F5F1E6',
+        color: m.from === 'BUYER' ? '#fff' : '#181712',
+      })),
+      activityLog: raw.activityLog,
+    };
+
+    return {
+      isSiteTeam,
+      buyerBtnBg: !isSiteTeam ? '#0B3B2E' : '#fff',
+      buyerBtnColor: !isSiteTeam ? '#fff' : '#181712',
+      siteBtnBg: isSiteTeam ? '#0B3B2E' : '#fff',
+      siteBtnColor: isSiteTeam ? '#fff' : '#181712',
+      setRoleBuyer: () => this.setRole('buyer'),
+      setRoleSite: () => this.setRole('site'),
+      unitIdInput: this.state.unitIdInput,
+      onUnitIdChange: (e) => this.onUnitIdChange(e),
+      loadUnit: () => this.loadUnit(),
+      resetDemo: () => this.resetDemo(),
+      notFoundNotice: this.state.justCreated,
+      currentUnit,
+      hasExpandedPhase: !!expandedPhase,
+      expandedPhase,
+      onPercentChange: (e) => this.onPercentChange(e),
+      messageDraft: this.state.messageDraft,
+      messagePlaceholder: isSiteTeam ? 'Message the buyer...' : 'Message the site team...',
+      onMessageDraftChange: (e) => this.onMessageDraftChange(e),
+      sendMessage: () => this.sendMessage(),
+    };
+  }
+}
+</script>
+</body>
+</html>
