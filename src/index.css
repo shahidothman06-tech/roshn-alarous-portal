@@ -5,3 +5,43 @@
 html, body, #root {
   height: 100%;
 }
+
+/* ---------------------------------------------------------------------------
+   Shared interaction affordances — applied to every control so old and new
+   elements feel consistent. Colors reference the existing tokens only:
+   C.green (#0F3D2E), C.greenSoft (#E7EFE9).
+   --------------------------------------------------------------------------- */
+button {
+  cursor: pointer;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  transition: filter 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+/* Hover / active press feedback for buttons */
+button:hover {
+  filter: brightness(0.95);
+}
+button:active {
+  filter: brightness(0.9);
+}
+
+/* Keyboard focus ring for all interactive controls */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #0F3D2E; /* C.green */
+  outline-offset: 1px;
+}
+
+/* Timeline phase rows get a subtle fill on hover (C.greenSoft) */
+.phase-row:hover {
+  background-color: #E7EFE9;
+}

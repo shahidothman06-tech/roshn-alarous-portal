@@ -817,18 +817,18 @@ export default function App() {
                 <div className="pb-8 flex-1">
                   {/* Clickable phase header — expands the detail panel below */}
                   <button
+                    className="phase-row"
                     onClick={() => setExpandedPhaseKey(isSelected ? null : phase.key)}
                     style={{
                       display: "block",
                       width: "100%",
+                      maxWidth: "100%",
                       textAlign: "left",
-                      cursor: "pointer",
-                      background: isSelected ? C.greenSoft : "transparent",
+                      background: isSelected ? C.greenSoft : undefined,
                       border: `1px solid ${isSelected ? C.hairline : "transparent"}`,
                       borderRadius: 6,
-                      padding: isSelected ? "8px 10px" : "8px 0",
-                      margin: isSelected ? "0 -10px" : 0,
-                      transition: "background 0.15s",
+                      padding: "8px 10px",
+                      margin: "0 -10px",
                     }}
                   >
                     <div className="flex flex-wrap items-center gap-2">
@@ -888,9 +888,9 @@ export default function App() {
       </section>
 
       {/* Messages + Activity log */}
-      <section className="px-5 sm:px-10 py-4 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
+      <section className="px-5 sm:px-10 py-10 max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Messages */}
-        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-5 flex flex-col" >
+        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-6 flex flex-col">
           <h3 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 17 }}>Messages</h3>
           <p style={{ color: C.inkSoft, fontSize: 13, marginTop: 2 }}>Direct line between buyer and site team.</p>
           <div className="flex flex-col gap-3 mt-4 mb-3" style={{ flex: 1, overflowY: "auto", maxHeight: 300 }}>
@@ -938,7 +938,7 @@ export default function App() {
         </div>
 
         {/* Activity log */}
-        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-5">
+        <div style={{ background: C.card, border: `1px solid ${C.hairline}`, borderRadius: 6 }} className="p-6">
           <h3 style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 17 }}>Activity log</h3>
           <p style={{ color: C.inkSoft, fontSize: 13, marginTop: 2 }}>Automatic record of progress and milestone changes.</p>
           <div className="flex flex-col gap-3 mt-4" style={{ maxHeight: 340, overflowY: "auto" }}>
