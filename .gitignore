@@ -1,6 +1,9 @@
 # dependencies
 node_modules
 
+# server runtime data (JSON store is seeded on first run)
+server/data/
+
 # build output
 dist
 dist-ssr

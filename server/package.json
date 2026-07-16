@@ -1,0 +1,15 @@
+{
+  "name": "roshn-alarous-portal-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Lightweight JSON-file backend for the ROSHN Alarous buyer portal. No database, no native/compiled dependencies.",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2"
+  }
+}

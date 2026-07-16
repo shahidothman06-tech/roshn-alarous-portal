@@ -112,27 +112,51 @@ function overallPercent(phases) {
 }
 
 // ---------------------------------------------------------------------------
-// Storage helpers — stand-in for a real ROSHN API.
+// Storage helpers — now backed by the real REST API (server/), so data syncs
+// across devices instead of living in one browser's localStorage.
 //
-// This standalone build uses localStorage (works in any browser, persists
-// per-device only). See backend_data_model.md for the real API contract —
-// once that backend exists, replace the bodies of storageGet/storageSet
-// with fetch() calls and nothing else in this file needs to change.
+// The key/value signatures are unchanged, so nothing else in this file had to
+// change. Keys map onto REST resources:
+//   "unit:{id}"    <-> GET/PUT  /api/units/{id}
+//   "phases:{id}"  <-> GET/PUT  /api/units/{id}/phases
+//   "updates:{id}" <-> GET/PUT  /api/units/{id}/updates
+// (The server also exposes PATCH /phases/{key} and POST /updates per the
+// contract in backend_data_model.md; this generic adapter uses the bulk
+// PUT endpoints to preserve the storageGet/storageSet shape.)
 // ---------------------------------------------------------------------------
+const API_BASE = "http://localhost:4000/api";
+
+function endpointFor(key) {
+  const sep = key.indexOf(":");
+  const type = key.slice(0, sep); // "unit" | "phases" | "updates"
+  const id = key.slice(sep + 1);
+  const base = `${API_BASE}/units/${encodeURIComponent(id)}`;
+  return type === "unit" ? base : `${base}/${type}`;
+}
+
 async function storageGet(key) {
   try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : null;
+    const res = await fetch(endpointFor(key));
+    if (res.status === 404) return null; // unknown unit -> caller seeds defaults
+    if (!res.ok) throw new Error(`GET ${key} failed: ${res.status}`);
+    return await res.json();
   } catch (e) {
+    console.error("API load failed", e);
     return null;
   }
 }
+
 async function storageSet(key, value) {
   try {
-    window.localStorage.setItem(key, JSON.stringify(value));
+    const res = await fetch(endpointFor(key), {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(value),
+    });
+    if (!res.ok) throw new Error(`PUT ${key} failed: ${res.status}`);
     return true;
   } catch (e) {
-    console.error("Storage save failed", e);
+    console.error("API save failed", e);
     return false;
   }
 }

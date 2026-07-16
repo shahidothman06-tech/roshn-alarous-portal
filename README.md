@@ -25,34 +25,73 @@ npm run build
 This outputs static files to `dist/` — you can host those on any static
 host (Vercel, Netlify, S3 + CloudFront, nginx, etc.).
 
-## How data works right now
+## How data works now
 
-This standalone build stores data in the browser's `localStorage`, so:
-- It persists across page reloads on the same device/browser.
-- It is **not shared** between different people's browsers — the "Site
-  Team" view and "Buyer" view only share data if opened in the same
-  browser.
+Data is served by a small **Node.js + Express backend** in `server/`, backed
+by a plain JSON file on disk (`server/data/db.json`). Because the frontend
+talks to that server instead of `localStorage`, the same data is shared across
+every device/browser that points at the server — the Site Team's edits show up
+in the Buyer view.
 
-That's fine for trying things out locally, but for a real product you need
-a real backend so the site team's updates show up on the buyer's phone.
+### Run the backend + frontend together
 
-## Going live with real data
+Open **two terminals**:
 
-See `backend_data_model.md` (in the parent folder) for:
-- The full data model (Buyer, Project, Unit, ConstructionPhase, etc.)
-- The REST API endpoints a backend should expose
-- Exactly which two functions in `src/App.jsx` to change
+```bash
+# Terminal 1 — API server (http://localhost:4000)
+cd roshn-portal/server
+npm install      # first time only — installs express + cors (no build tools)
+npm start        # -> [server] ... listening on http://localhost:4000
+```
 
-In short: open `src/App.jsx`, find `storageGet` and `storageSet` near the
-top, and replace their bodies with `fetch()` calls to your real API instead
-of `localStorage`. Nothing else in the file needs to change.
+```bash
+# Terminal 2 — Vite frontend (http://localhost:5173)
+cd roshn-portal
+npm install      # first time only
+npm run dev
+```
+
+Then open the URL Vite prints (usually `http://localhost:5173`). The site works
+exactly as before, just backed by the server.
+
+Notes:
+- **Zero build tools / no native deps.** The store is plain JSON files, so
+  `npm install` in `server/` works on any machine (no SQLite / node-gyp).
+- On first run the server seeds `server/data/db.json` with the demo unit
+  `ALR-114`. Delete that file to reset to defaults; it is git-ignored.
+- The frontend calls `http://localhost:4000/api/...` (see `API_BASE` in
+  `src/App.jsx`). If you host the API elsewhere, change `API_BASE` and add the
+  new origin to `ALLOWED_ORIGINS` in `server/index.js`.
+
+### API endpoints
+
+```
+GET   /api/health
+GET   /api/units/:id                    -> unit record (404 if unknown)
+PUT   /api/units/:id                    -> upsert unit record
+GET   /api/units/:id/phases             -> ordered phases array
+PUT   /api/units/:id/phases             -> replace phases array
+PATCH /api/units/:id/phases/:key        -> { percent } update one phase
+GET   /api/units/:id/updates            -> site updates (newest first)
+PUT   /api/units/:id/updates            -> replace updates array
+POST  /api/units/:id/updates            -> prepend one update
+```
+
+## Going further
+
+The `server/` backend is a working stand-in that stores data in a JSON file —
+great for demos and small deployments, but not a production database. See
+`backend_data_model.md` for the full intended data model (Buyer, Project, Unit,
+ConstructionPhase, etc.) and the complete REST contract.
 
 ## Next steps for a production app
-1. Build the backend (Node/Express, or any stack) implementing the API
-   contract in `backend_data_model.md`, backed by a real database
-   (Postgres is a solid default).
+1. Swap the JSON-file store (`server/store.js`) for a real database
+   (Postgres is a solid default) — the Express routes in `server/index.js`
+   stay largely the same.
 2. Add authentication so each buyer only sees their own unit, and only
-   site engineers/PMs can edit progress.
-3. Point `storageGet`/`storageSet` in `src/App.jsx` at that API.
-4. Deploy the backend, then deploy this frontend (`npm run build`) to a
-   static host, or embed it inside ROSHN's existing customer app.
+   site engineers/PMs can edit progress (the `/phases` PATCH and `/updates`
+   POST endpoints).
+3. Deploy the backend, point `API_BASE` in `src/App.jsx` at its URL (and add
+   that origin to `ALLOWED_ORIGINS` in `server/index.js`), then deploy this
+   frontend (`npm run build`) to a static host, or embed it inside ROSHN's
+   existing customer app.
