@@ -321,6 +321,37 @@ const inputStyle = {
   width: "100%",
 };
 
+// Resolve the logo URL without breaking the build when the file isn't there
+// yet. When src/assets/logo.svg exists, Vite bundles it and rewrites this to
+// the emitted asset URL; when it doesn't, Vite leaves it as a runtime URL that
+// simply 404s, and <Logo> falls back to the text wordmark below.
+const LOGO_URL = new URL("./assets/logo.svg", import.meta.url).href;
+
+// ROSHN brand mark. Renders src/assets/logo.svg sized to the old text badge's
+// footprint, falling back to the original green text badge if the image is
+// missing or fails to load.
+function Logo() {
+  const [broken, setBroken] = useState(false);
+  if (broken) {
+    return (
+      <div
+        style={{ background: C.green, color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, letterSpacing: "0.04em" }}
+        className="px-2.5 py-1.5 rounded"
+      >
+        ROSHN
+      </div>
+    );
+  }
+  return (
+    <img
+      src={LOGO_URL}
+      alt="ROSHN"
+      onError={() => setBroken(true)}
+      style={{ height: 30, width: "auto", maxWidth: 140, display: "block" }}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Expanded phase detail panel (milestone · photos · notes)
 // ---------------------------------------------------------------------------
@@ -666,12 +697,7 @@ export default function App() {
         style={{ borderBottom: `1px solid ${C.hairline}` }}
       >
         <div className="flex items-center gap-3">
-          <div
-            style={{ background: C.green, color: "#fff", fontFamily: FONT_DISPLAY, fontWeight: 700, fontSize: 14, letterSpacing: "0.04em" }}
-            className="px-2.5 py-1.5 rounded"
-          >
-            ROSHN
-          </div>
+          <Logo />
           <div style={{ borderLeft: `1px solid ${C.hairline}`, height: 22 }} />
           <div style={{ fontFamily: FONT_DISPLAY, fontWeight: 600, fontSize: 15 }}>
             Alarous <span style={{ color: C.inkSoft, fontWeight: 500 }}>· Buyer Portal</span>
